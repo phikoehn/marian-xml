@@ -72,6 +72,10 @@ God& God::Init(int argc, char** argv) {
   }
   targetVocab_.reset(new Vocab(Get<std::string>("target-vocab")));
 
+  if (Has("lexicon-bias")) {
+    LoadLexiconBias(Get<std::string>("lexicon-bias"));
+  }
+
   weights_ = Get<std::map<std::string, float>>("weights");
 
   if(Get<bool>("show-weights")) {
@@ -311,6 +315,21 @@ size_t God::GetTotalThreads() const
 #endif
   return totalThreads;
 }
+
+void God::LoadLexiconBias(const std::string& path) {
+  LOG(info, "Reading lexicon bias from {}", path);
+  InputFileStream flexiconbias(path);
+  const Vocab &vcb = *targetVocab_;
+  std::string word;
+  float bias;
+  while(flexiconbias >> word >> bias) {
+    lexiconBias_[ vcb[ word ] ] = bias;
+  }
+}
+
+const std::map<size_t, float>& God::GetLexiconBias() const {
+  return lexiconBias_;
+ }
 
 }
 

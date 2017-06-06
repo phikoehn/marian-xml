@@ -28,14 +28,14 @@ Search::~Search() {
 #endif
 }
 
-std::shared_ptr<Histories> Search::Translate(const Sentences& sentences) {
+std::shared_ptr<Histories> Search::Translate(const God &god, const Sentences& sentences) {
   boost::timer::cpu_timer timer;
 
   if (filter_) {
     FilterTargetVocab(sentences);
   }
 
-  auto histories = Decode(sentences);
+  auto histories = Decode(god,sentences);
   CleanAfterTranslation();
 
   LOG(progress, "Search took {}", timer.format(3, "%ws"));
@@ -78,13 +78,16 @@ States Search::SetSource(const Sentences& sentences) {
 }
 
 
-std::shared_ptr<Histories> Search::Decode(const Sentences& sentences) {
+std::shared_ptr<Histories> Search::Decode(const God &god, const Sentences& sentences) {
   States states = SetSource(sentences);
   States nextStates = NewStates();
   std::vector<size_t> beamSizes(sentences.size(), 1);
 
   std::shared_ptr<Histories> histories(new Histories(sentences, normalizeScore_));
   Beam prevHyps = histories->GetFirstHyps();
+  for(size_t i=0; i<prevHyps.size(); i++) {
+    prevHyps[i]->InitXmlOptionCovered( sentences.at(i)->GetXmlOptions() );
+  }
 
   for (size_t decoderStep = 0; decoderStep < 3 * sentences.GetMaxLength(); ++decoderStep) {
     for (size_t i = 0; i < scorers_.size(); i++) {
@@ -97,7 +100,7 @@ std::shared_ptr<Histories> Search::Decode(const Sentences& sentences) {
       }
     }
 
-    bool hasSurvivors = CalcBeam(histories, beamSizes, prevHyps, states, nextStates);
+    bool hasSurvivors = CalcBeam(god, histories, beamSizes, prevHyps, states, nextStates);
     if (!hasSurvivors) {
       break;
     }
@@ -107,6 +110,7 @@ std::shared_ptr<Histories> Search::Decode(const Sentences& sentences) {
 
 
 bool Search::CalcBeam(
+                const God &god,
 		std::shared_ptr<Histories>& histories,
 		std::vector<size_t>& beamSizes,
     Beam& prevHyps,
@@ -115,7 +119,7 @@ bool Search::CalcBeam(
 {
     size_t batchSize = beamSizes.size();
     Beams beams(batchSize);
-    bestHyps_->CalcBeam(prevHyps, scorers_, filterIndices_, beams, beamSizes);
+    bestHyps_->CalcBeam(god, prevHyps, scorers_, filterIndices_, beams, beamSizes);
     histories->Add(beams);
 
     Beam survivors;

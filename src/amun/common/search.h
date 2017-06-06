@@ -17,16 +17,17 @@ class Search {
     Search(const God &god);
     virtual ~Search();
 
-    std::shared_ptr<Histories> Translate(const Sentences& sentences);
+    std::shared_ptr<Histories> Translate(const God &god, const Sentences& sentences);
 
   protected:
     States NewStates() const;
     void FilterTargetVocab(const Sentences& sentences);
     States SetSource(const Sentences& sentences);
-    std::shared_ptr<Histories> Decode(const Sentences& sentences);
+    std::shared_ptr<Histories> Decode(const God &god, const Sentences& sentences);
     void CleanAfterTranslation();
 
     bool CalcBeam(
+                const God &god,
     		std::shared_ptr<Histories>& histories,
     		std::vector<size_t>& beamSizes,
         Beam& prevHyps,

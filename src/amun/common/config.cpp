@@ -31,7 +31,7 @@ const YAML::Node& Config::Get() const {
 
 void ProcessPaths(YAML::Node& node, const boost::filesystem::path& configPath, bool isPath) {
   using namespace boost::filesystem;
-  std::set<std::string> paths = {"path", "paths", "source-vocab", "target-vocab", "bpe", "softmax-filter"};
+  std::set<std::string> paths = {"path", "paths", "source-vocab", "target-vocab", "bpe", "softmax-filter", "lexicon-bias"};
 
   if(isPath) {
     if(node.Type() == YAML::NodeType::Scalar) {
@@ -172,6 +172,7 @@ void Config::AddOptions(size_t argc, char** argv) {
   std::vector<std::string> sourceVocabPaths;
   std::string targetVocabPath;
   std::vector<std::string> bpePaths;
+  std::string lexiconBiasPath;
   bool debpe;
 
   std::vector<size_t> devices;
@@ -221,6 +222,14 @@ void Config::AddOptions(size_t argc, char** argv) {
      "If true, return soft alignment.")
     ("max-length", po::value<size_t>()->default_value(500),
       "Maximum length of input sentences. Anything above this is truncated. 0=no max length")
+    ("xml-input", po::value<bool>()->zero_tokens()->default_value(false),
+     "Enable XML translation specifications in input (same format as Moses)")
+    ("xml-penalty-weight", po::value<float>()->default_value(-10.0),
+     "Weight given to the XML coverage penalty")
+    ("xml-penalty-window", po::value<size_t>()->default_value(10),
+     "Size of the window over which coverage penalty increases")
+    ("lexicon-bias", po::value(&lexiconBiasPath),
+      "file with output words to be preferred (positive) / suppressed (negative)")
     ("version,v", po::value<bool>()->zero_tokens()->default_value(false),
      "Print version.")
     ("help,h", po::value<bool>()->zero_tokens()->default_value(false),
@@ -290,6 +299,9 @@ void Config::AddOptions(size_t argc, char** argv) {
   SET_OPTION("n-best", bool);
   SET_OPTION("normalize", bool);
   SET_OPTION("wipo", bool);
+  SET_OPTION("xml-input", bool);
+  SET_OPTION("xml-penalty-weight", float);
+  SET_OPTION("xml-penalty-window", size_t);
   SET_OPTION("return-alignment", bool);
   SET_OPTION("return-soft-alignment", bool);
   SET_OPTION("softmax-filter", std::vector<std::string>);
@@ -308,6 +320,7 @@ void Config::AddOptions(size_t argc, char** argv) {
   SET_OPTION_NONDEFAULT("load-weights", std::string);
   SET_OPTION("relative-paths", bool);
   SET_OPTION_NONDEFAULT("input-file", std::string);
+  SET_OPTION_NONDEFAULT("lexicon-bias", std::string);
   SET_OPTION("log-progress", bool);
   SET_OPTION("log-info", bool);
   // @TODO: Apply complex overwrites

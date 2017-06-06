@@ -69,6 +69,8 @@ class God {
 
 
     void LoadWeights(const std::string& path);
+    void LoadLexiconBias(const std::string& path);
+    const std::map<size_t, float>& GetLexiconBias() const;
 
     DeviceInfo GetNextDevice() const;
     Search &GetSearch() const;
@@ -97,6 +99,8 @@ class God {
     Loaders cpuLoaders_;
     Loaders gpuLoaders_;
     std::map<std::string, float> weights_;
+
+    std::map<size_t, float> lexiconBias_;
 
     std::shared_ptr<spdlog::logger> info_;
     std::shared_ptr<spdlog::logger> progress_;

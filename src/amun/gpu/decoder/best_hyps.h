@@ -62,6 +62,7 @@ class BestHyps : public BestHypsBase
     }
 
     void CalcBeam(
+        const God &god,
         const Beam& prevHyps,
         const std::vector<ScorerPtr>& scorers,
         const Words& filterIndices,
@@ -69,6 +70,7 @@ class BestHyps : public BestHypsBase
         std::vector<size_t>& beamSizes)
     {
       using namespace mblas;
+      bool debug = false;
 
       mblas::Matrix& Probs = static_cast<mblas::Matrix&>(scorers[0]->GetProbs());
 
@@ -86,6 +88,164 @@ class BestHyps : public BestHypsBase
         mblas::Matrix &currProbs = static_cast<mblas::Matrix&>(scorers[i]->GetProbs());
 
         Element(_1 + weights_.at(scorers[i]->GetName()) * _2, Probs, currProbs);
+      }
+
+      std::vector< std::vector<XmlOptionCovered> > xmlCovered;
+      for (auto& h : prevHyps) {
+        xmlCovered.push_back( h->GetXmlOptionCovered() );
+      }
+
+      std::vector<SoftAlignmentPtr> alignments;
+      for (size_t i = 0; i < prevHyps.size(); ++i) {
+        if (GPU::EncoderDecoder* encdec = dynamic_cast<GPU::EncoderDecoder*>(scorers[0].get())) {
+          auto& attention = encdec->GetAttention();
+          size_t attLength = attention.Cols();
+
+          alignments.emplace_back(new SoftAlignment(
+              attention.begin() + i * attLength,
+              attention.begin() + (i + 1) * attLength));
+        }
+        else {
+          std::cerr << "FAILED";
+        }
+      }
+
+      float  penaltyWeight = god.Get<float>("xml-penalty-weight");
+      size_t penaltyWindow = god.Get<float>("xml-penalty-window");
+      HostVector<float> vXmlCoveragePenalty;
+      for (auto& h : prevHyps) {
+        vXmlCoveragePenalty.push_back( 0.0 );
+      };
+      if (debug) std::cerr << "alignments for current hypotheses:\n";
+      for (size_t i = 0; i < prevHyps.size(); ++i) {
+
+        size_t max_pos = -1;
+        float max_value = 0;
+        SoftAlignment alignment = *(alignments[i]);
+        float eos_attention = alignment[alignment.size()-1];
+        for (size_t j = 0; j < alignment.size()-1; j++) {
+          alignment[j] /= 1 - eos_attention;
+          if (debug) {
+            if (alignment[j] < 0.1) { std::cerr << "-"; }
+            else { std::cerr << (int) (alignment[j]*10); }
+          }
+          if (alignment[j] > max_value) {
+            max_value = alignment[j];
+            max_pos = j;
+          }
+        }
+
+        if (debug) {
+          HypothesisPtr hyp = prevHyps[i];
+          while(hyp->GetLength() > 0) {
+            std::cerr << " " << god.GetTargetVocab()[hyp->GetWord()];
+            hyp = hyp->GetPrevHyp();
+          }
+        }
+        float prevCost = prevHyps[i]->GetCost();
+
+        bool coveredByXml = false;
+        if (god.Get<bool>("xml-input") && xmlCovered[i].size()>0) {
+
+          // is there an xmlOption that was started but is not complete?
+          for(size_t j=0; j<xmlCovered[i].size(); j++) {
+            if (xmlCovered[i][j].GetStarted() && !xmlCovered[i][j].GetCovered()) {
+              if (debug) std::cerr << " continue with XML option" ;
+              const Words &outputWords = xmlCovered[i][j].GetOption()->GetOutput();
+              Word outputWord = outputWords[xmlCovered[i][j].GetPosition()];
+              auto ProbsPtx = Probs.begin();
+              ProbsPtx += Probs.Cols() * i;
+              for(size_t k = 0; k < Probs.Cols(); k++, ProbsPtx++) {
+                if (k == outputWord) {
+                  *ProbsPtx = prevCost;
+                }
+                else {
+                  *ProbsPtx += -999.0;
+                }
+              }
+              xmlCovered[i][j].Proceed();
+              if (debug && xmlCovered[i][j].GetCovered()) {
+                std::cerr << ", now complete";
+              }
+              coveredByXml = true;
+            }
+          }
+
+          // does a new xmlOption start here?
+          for (size_t j=0; j<xmlCovered[i].size() && !coveredByXml; j++) {
+            if (max_pos == xmlCovered[i][j].GetOption()->GetStart() &&
+                !xmlCovered[i][j].GetCovered()) {
+              if (debug) std::cerr << " XML" ;
+              const Words &outputWords = xmlCovered[i][j].GetOption()->GetOutput();
+              Word outputWord = outputWords[0];
+              auto ProbsPtx = Probs.begin();
+              ProbsPtx += Probs.Cols() * i + outputWord;
+              *ProbsPtx = 999.0 + prevCost;
+              vXmlCoveragePenalty[i] += -999.0;
+              //for(size_t k = 0; k < Probs.Cols(); k++, ProbsPtx++) {
+              //  if (k == outputWord) {
+              //    *ProbsPtx = prevCost;
+              //  }
+              //  else {
+              //    *ProbsPtx += -999.0;
+              //  }
+              //}
+              xmlCovered[i][j].Start();
+              if (debug) {
+                if (xmlCovered[i][j].GetCovered()) {
+                  std::cerr << ", complete" << outputWords.size();
+                }
+                else {
+                  std::cerr << ", tbc" << outputWords.size();
+                }
+              }
+              coveredByXml = true;
+            }
+          }
+          // xml coverage penalties
+          size_t translationLength = prevHyps[i]->GetLength();
+          float penalty = 0.0;
+          float allP = 0.0;
+          if (debug) std::cerr << ", penalty";
+          for(size_t j=0; j<xmlCovered[i].size(); j++) {
+            penalty -= prevHyps[i]->GetXmlOptionCovered()[j].GetPenalty(penaltyWeight, penaltyWindow, translationLength-1, false);
+            penalty += xmlCovered[i][j].GetPenalty( penaltyWeight, penaltyWindow, translationLength, false );
+            if (debug) allP += xmlCovered[i][j].GetPenalty( penaltyWeight, penaltyWindow, translationLength, false );
+            if (debug) std::cerr << "," << j << "(" << penaltyWeight << "," << penaltyWindow << "," << translationLength << ")=" << xmlCovered[i][j].GetPenalty( penaltyWeight, penaltyWindow, translationLength, false ) << "/" << prevHyps[i]->GetXmlOptionCovered()[j].GetPenalty(penaltyWeight, penaltyWindow, translationLength-1, false);
+          }
+          vXmlCoveragePenalty[i] += penalty;
+          if (debug) std::cerr << " penalty:" << allP << " add" << penalty;
+
+        }
+
+        if (god.Has("lexicon-bias") && !coveredByXml) {
+          auto ProbsPtx = Probs.begin() + Probs.Cols() * i;
+          for (auto& x: god.GetLexiconBias()) {
+            size_t word = x.first;
+            float bias = x.second;
+            *(ProbsPtx + word) += bias;
+          }
+        }
+        if (debug) std::cerr << " cost:" << prevHyps[i]->GetCost();
+        if (debug) std::cerr << "\n";
+      }
+
+      if (god.Get<bool>("xml-input") && xmlCovered[0].size()>0) {
+        DeviceVector<float> XmlCoveragePenalty(vXmlCoveragePenalty.size());;
+        mblas::copy(vXmlCoveragePenalty.begin(), vXmlCoveragePenalty.end(), XmlCoveragePenalty.begin());
+        BroadcastVecColumn(_1 + _2, Probs, XmlCoveragePenalty);
+
+        // std::cerr << Debug(XmlCoveragePenalty);
+        // TODO AddBiasVector<byColumn>(Probs, XmlCoveragePenalty);
+        for (size_t i = 0; i < prevHyps.size(); ++i) {
+          size_t translationLength = prevHyps[i]->GetLength();
+          // if predicted word is EOS, then apply final penalty
+          for(size_t j=0; j<xmlCovered[i].size(); j++) {
+            auto ProbsPtx = Probs.begin() + Probs.Cols() * i + EOS_ID;
+            *ProbsPtx -= xmlCovered[i][j].GetPenalty( penaltyWeight, penaltyWindow, translationLength, false );
+            *ProbsPtx += xmlCovered[i][j].GetPenalty( penaltyWeight, penaltyWindow, translationLength, true );
+          }
+        }
       }
 
       if (forbidUNK_) {
@@ -131,9 +291,11 @@ class BestHyps : public BestHypsBase
         HypothesisPtr hyp;
         if (returnAttentionWeights_) {
           hyp.reset(new Hypothesis(prevHyps[hypIndex], wordIndex, hypIndex, cost,
+                                   xmlCovered[hypIndex],
                                    GetAlignments(scorers, hypIndex)));
         } else {
-          hyp.reset(new Hypothesis(prevHyps[hypIndex], wordIndex, hypIndex, cost));
+          hyp.reset(new Hypothesis(prevHyps[hypIndex], wordIndex, hypIndex, cost,
+                                   xmlCovered[hypIndex]));
         }
 
         if(returnAttentionWeights_) {

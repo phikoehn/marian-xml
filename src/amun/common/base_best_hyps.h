@@ -28,6 +28,7 @@ class BestHypsBase
     BestHypsBase(const BestHypsBase&) = delete;
 
     virtual void CalcBeam(
+        const God& god,
         const Beam& prevHyps,
         const std::vector<ScorerPtr>& scorers,
         const Words& filterIndices,
