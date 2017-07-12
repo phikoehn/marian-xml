@@ -11,20 +11,44 @@ list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/common/git_version.cpp")
 add_library(cpumode OBJECT
   cpu/mblas/matrix.cpp
   cpu/mblas/phoenix_functions.cpp
-  cpu/dl4mt/decoder.cpp
+  cpu/decoder/encoder_decoder.cpp
+  cpu/decoder/encoder_decoder_state.cpp
+  cpu/decoder/encoder_decoder_loader.cpp
   cpu/dl4mt/encoder.cpp
   cpu/dl4mt/gru.cpp
   cpu/dl4mt/model.cpp
-  cpu/decoder/encoder_decoder.cpp
+  cpu/dl4mt/encoder_decoder.cpp
+  cpu/nematus/encoder.cpp
+  cpu/nematus/model.cpp
+  cpu/nematus/gru.cpp
+  cpu/nematus/transition.cpp
+  cpu/nematus/encoder_decoder.cpp
+
+  #fpga/best_hyps.cpp
+  #fpga/decoder.cpp
+  #fpga/encoder_decoder_loader.cpp
+  #fpga/encoder_decoder_state.cpp
+  #fpga/encoder_decoder.cpp
+  #fpga/encoder.cpp
+  #fpga/matrix_functions.cpp
+  #fpga/matrix.cpp
+  #fpga/model.cpp
+  #fpga/nth_element.cpp
+  #fpga/npz_converter.cpp
+  #fpga/kernel.cpp
+  #fpga/debug-devices.cpp
+  #fpga/hello_world.cpp
 )
 
 add_library(libcommon OBJECT
   ${CMAKE_CURRENT_BINARY_DIR}/common/git_version.cpp
+  common/base_matrix.cpp
   common/config.cpp
   common/exception.cpp
   common/filter.cpp
   common/god.cpp
   common/history.cpp
+  common/hypothesis.cpp
   common/loader.cpp
   common/logging.cpp
   common/output_collector.cpp
@@ -55,8 +79,11 @@ cuda_add_executable(
   amun
   common/decoder_main.cpp
   gpu/decoder/encoder_decoder.cu
+  gpu/decoder/encoder_decoder_loader.cu
+  gpu/decoder/encoder_decoder_state.cu
   gpu/dl4mt/encoder.cu
   gpu/dl4mt/gru.cu
+  gpu/mblas/matrix.cu
   gpu/mblas/matrix_functions.cu
   gpu/mblas/nth_element.cu
   gpu/npz_converter.cu
@@ -75,6 +102,9 @@ cuda_add_library(python SHARED
   python/amunmt.cpp
   # gpu/decoder/ape_penalty.cu
   gpu/decoder/encoder_decoder.cu
+  gpu/decoder/encoder_decoder_loader.cu
+  gpu/decoder/encoder_decoder_state.cu
+  gpu/mblas/matrix.cu
   gpu/mblas/matrix_functions.cu
   gpu/mblas/nth_element.cu
   gpu/dl4mt/encoder.cu
@@ -98,6 +128,9 @@ cuda_add_library(mosesplugin STATIC
   plugin/nmt.cu
   plugin/neural_phrase.cpp
   gpu/decoder/encoder_decoder.cu
+  gpu/decoder/encoder_decoder_loader.cu
+  gpu/decoder/encoder_decoder_state.cu
+  gpu/mblas/matrix.cu
   gpu/mblas/matrix_functions.cu
   gpu/mblas/nth_element.cu
   gpu/dl4mt/encoder.cu

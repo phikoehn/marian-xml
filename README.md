@@ -26,7 +26,7 @@
     <li> Compatible with Nematus and DL4MT </li>
     <li> Efficient pure C++ implementation </li>
     <li> Permissive open source license (MIT) </li>
-    <li> <a href="http://amunmt.github.io/features"> more details... </a> </li>
+    <li> <a href="https://marian-nmt.github.io/features/"> more details... </a> </li>
   </ul>
   </p>
 
@@ -82,22 +82,43 @@ Tested on different machines and distributions:
  * CMake 3.5.1
  * The CPU version should be a lot more forgiving concerning GCC/G++ or Boost versions.
 
+#### macOS
+
+To be able to make the CPU version on macOS, first install [brew](https://brew.sh/) and then run:
+
+    brew install cmake boost boost-python
+
+Then, proceed to the next section.
+
 ## Download and Compilation
 
 Clone a fresh copy from github:
 
-    git clone https://github.com/amunmt/amunmt
+    git clone https://github.com/marian-nmt/marian.git
 
 The project is a standard CMake out-of-source build:
 
-    cd amunmt
-    mkdir build
-    cd build
+    cd marian
+    mkdir build && cd build
     cmake ..
     make -j
 
 If run for the first time, this will also download Marian -- the training
-framework for Marian.
+framework for Marian. 
+
+You can build the CPU-only version by instead typing:
+
+    cmake .. -DCUDA=off
+    
+This will compile the CPU-only version of amun, the decoder. Training is GPU-only.
+
+### Compile Python bindings
+
+In order to compile the Python library, after running _make_ as in the previous section, do:
+
+    make python
+
+This will generate a _libamunmt.dylib_ or _libamunmt.so_ in your `build/src/` directory, which can be imported from Python.
 
 ## Running Marian
 

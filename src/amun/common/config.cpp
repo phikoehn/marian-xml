@@ -148,7 +148,7 @@ void OutputRec(const YAML::Node node, YAML::Emitter& out) {
 }
 
 void LoadWeights(YAML::Node& config, const std::string& path) {
-  LOG(info, "Reading weights from {}", path);
+  LOG(info)->info("Reading weights from {}", path);
   InputFileStream fweights(path);
   std::string name;
   float weight;
@@ -156,7 +156,7 @@ void LoadWeights(YAML::Node& config, const std::string& path) {
   while(fweights >> name >> weight) {
     if(name.back() == '=')
       name.pop_back();
-    LOG(info, " > {} = {}", name , weight);
+    LOG(info)->info(" > {} = {}", name , weight);
     config["weights"][name] = weight;
     i++;
   }
@@ -175,7 +175,7 @@ void Config::AddOptions(size_t argc, char** argv) {
   std::string lexiconBiasPath;
   bool debpe;
 
-  std::vector<size_t> devices;
+  std::vector<size_t> devices, fpgaDevices;
 
   general.add_options()
     ("config,c", po::value(&configPath),
@@ -200,16 +200,33 @@ void Config::AddOptions(size_t argc, char** argv) {
      "Implicitly sets minimal number of threads to number of devices.")
     ("gpu-threads", po::value<size_t>()->default_value(1),
      "Number of threads on a single GPU.")
+#endif
+
+#ifdef HAS_CPU
+  #ifdef CUDA
     ("cpu-threads", po::value<size_t>()->default_value(0),
      "Number of threads on the CPU.")
-#else
-    ("cpu-threads", po::value<size_t>()->default_value(1),
-     "Number of threads on the CPU.")
+  #else
+     ("cpu-threads", po::value<size_t>()->default_value(1),
+      "Number of threads on the CPU.")
+  #endif
 #endif
+
+#ifdef HAS_FPGA
+    ("fpga-threads", po::value<size_t>()->default_value(0),
+     "Number of threads on the FPGA.")
+    ("fpga-devices", po::value(&fpgaDevices)->multitoken()->default_value(std::vector<size_t>(1, 0), "0"),
+     "FPGA device(s) to use, set to 0 by default, "
+        "e.g. set to 0 1 to use fpga0 and fpga1. "
+        "Implicitly sets minimal number of threads to number of devices.")
+#endif
+
     ("mini-batch", po::value<size_t>()->default_value(1),
      "Number of sentences in mini batch.")
     ("maxi-batch", po::value<size_t>()->default_value(1),
       "Number of sentences in maxi batch.")
+    ("mini-batch-words", po::value<int>()->default_value(0),
+      "Set mini-batch size based on words instead of sentences.")
     ("show-weights", po::value<bool>()->zero_tokens()->default_value(false),
      "Output used weights to stdout and exit")
     ("load-weights", po::value<std::string>(),
@@ -234,10 +251,10 @@ void Config::AddOptions(size_t argc, char** argv) {
      "Print version.")
     ("help,h", po::value<bool>()->zero_tokens()->default_value(false),
      "Print this help message and exit")
-    ("log-progress",po::value<bool>()->default_value(true)->implicit_value(true),
-     "Log progress to stderr.")
-    ("log-info",po::value<bool>()->default_value(true)->implicit_value(true),
-     "Log info to stderr.")
+    ("log-progress",po::value<std::string>()->default_value("info")->implicit_value("info"),
+     "Log level for progress logging to stderr (trace - debug - info - warn - err(or) - critical - off).")
+    ("log-info",po::value<std::string>()->default_value("info")->implicit_value("info"),
+     "Log level for informative messages to stderr (trace - debug - info - warn - err(or) - critical - off).")
   ;
 
   po::options_description search("Search options");
@@ -308,21 +325,28 @@ void Config::AddOptions(size_t argc, char** argv) {
   SET_OPTION("allow-unk", bool);
   SET_OPTION("no-debpe", bool);
   SET_OPTION("beam-size", size_t);
-  SET_OPTION("cpu-threads", size_t);
   SET_OPTION("mini-batch", size_t);
   SET_OPTION("maxi-batch", size_t);
+  SET_OPTION("mini-batch-words", int);
   SET_OPTION("max-length", size_t);
 #ifdef CUDA
   SET_OPTION("gpu-threads", size_t);
   SET_OPTION("devices", std::vector<size_t>);
+#endif
+#ifdef HAS_CPU
+  SET_OPTION("cpu-threads", size_t);
+#endif
+#ifdef HAS_FPGA
+  SET_OPTION("fpga-threads", size_t);
+  SET_OPTION("fpga-devices", std::vector<size_t>);
 #endif
   SET_OPTION("show-weights", bool);
   SET_OPTION_NONDEFAULT("load-weights", std::string);
   SET_OPTION("relative-paths", bool);
   SET_OPTION_NONDEFAULT("input-file", std::string);
   SET_OPTION_NONDEFAULT("lexicon-bias", std::string);
-  SET_OPTION("log-progress", bool);
-  SET_OPTION("log-info", bool);
+  SET_OPTION("log-progress", std::string);
+  SET_OPTION("log-info", std::string);
   // @TODO: Apply complex overwrites
 
   if (Has("load-weights")) {
@@ -372,7 +396,7 @@ void Config::LogOptions() {
   std::stringstream ss;
   YAML::Emitter out;
   OutputRec(config_, out);
-  LOG(info, "Options: {}\n", out.c_str());
+  LOG(info)->info("Options: {}\n", out.c_str());
 }
 
 }

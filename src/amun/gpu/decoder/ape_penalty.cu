@@ -34,7 +34,7 @@ void ApePenalty::SetSource(const Sentence& source) {
 void ApePenalty::Score(const State& in, State& out) {
   size_t cols = Probs_.Cols();
   costs_.resize(cols, -1.0);
-  for(size_t i = 0; i < Probs_.Rows(); ++i) {
+  for(size_t i = 0; i < Probs_.dim(0); ++i) {
     algo::copy(costs_.begin(), costs_.begin() + cols, Probs_.begin() + i * cols);
   }
 }
@@ -75,7 +75,7 @@ void ApePenaltyLoader::Load() {
   penalties_.resize(tvcb.size(), -1.0);
 
   if(Has("path")) {
-    LOG(info, "Loading APE penalties from {}",Get<std::string>("path"));
+    LOG(info)->info("Loading APE penalties from {}",Get<std::string>("path"));
     YAML::Node penalties = YAML::Load(InputFileStream(Get<std::string>("path")));
     for(auto&& pair : penalties) {
       std::string entry = pair.first.as<std::string>();

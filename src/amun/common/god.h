@@ -96,8 +96,7 @@ class God {
     std::vector<PostprocessorPtr> postprocessors_;
 
     typedef std::map<std::string, LoaderPtr> Loaders;
-    Loaders cpuLoaders_;
-    Loaders gpuLoaders_;
+    Loaders cpuLoaders_, gpuLoaders_, fpgaLoaders_;
     std::map<std::string, float> weights_;
 
     std::map<size_t, float> lexiconBias_;

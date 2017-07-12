@@ -15,23 +15,28 @@
 #include "common/translation_task.h"
 
 using namespace amunmt;
+using namespace std;
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   God god;
   god.Init(argc, argv);
+
   std::setvbuf(stdout, NULL, _IONBF, 0);
   std::setvbuf(stdin, NULL, _IONBF, 0);
   boost::timer::cpu_timer timer;
 
-  std::string line;
-  std::size_t lineNum = 0;
 
-  size_t miniSize = god.Get<size_t>("mini-batch");
-  size_t maxiSize = god.Get<size_t>("maxi-batch");
+  size_t miniSize = (god.Get<size_t>("cpu-threads") == 0) ? god.Get<size_t>("mini-batch") : 1;
+  size_t maxiSize = (god.Get<size_t>("cpu-threads") == 0) ? god.Get<size_t>("maxi-batch") : 1;
+  int miniWords = god.Get<int>("mini-batch-words");
 
-  LOG(info, "Reading input");
+  LOG(info)->info("Reading input");
 
   SentencesPtr maxiBatch(new Sentences());
+
+  std::string line;
+  std::size_t lineNum = 0;
 
   while (std::getline(god.GetInputStream(), line)) {
     maxiBatch->push_back(SentencePtr(new Sentence(god, lineNum++, line)));
@@ -40,7 +45,9 @@ int main(int argc, char* argv[]) {
 
       maxiBatch->SortByLength();
       while (maxiBatch->size()) {
-        SentencesPtr miniBatch = maxiBatch->NextMiniBatch(miniSize);
+        SentencesPtr miniBatch = maxiBatch->NextMiniBatch(miniSize, miniWords);
+        //cerr << "miniBatch=" << miniBatch->size() << " maxiBatch=" << maxiBatch->size() << endl;
+
         god.GetThreadPool().enqueue(
             [&god,miniBatch]{ return TranslationTaskAndOutput(god, miniBatch); }
             );
@@ -55,7 +62,7 @@ int main(int argc, char* argv[]) {
   if (maxiBatch->size()) {
     maxiBatch->SortByLength();
     while (maxiBatch->size()) {
-      SentencesPtr miniBatch = maxiBatch->NextMiniBatch(miniSize);
+      SentencesPtr miniBatch = maxiBatch->NextMiniBatch(miniSize, miniWords);
       god.GetThreadPool().enqueue(
           [&god,miniBatch]{ return TranslationTaskAndOutput(god, miniBatch); }
           );
@@ -63,7 +70,7 @@ int main(int argc, char* argv[]) {
   }
 
   god.Cleanup();
-  LOG(info, "Total time: {}", timer.format());
-  //sleep(10);
+  LOG(info)->info("Total time: {}", timer.format());
+
   return 0;
 }

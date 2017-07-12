@@ -17,6 +17,9 @@ using DeviceVector = thrust::device_vector<T>;
 
 template<class T>
 using HostVector = thrust::host_vector<T>;
+//using HostVector = std::vector<T>;
+
+/////////////////////////////////////////////////////////////////////////////////////
 
 namespace algo = thrust;
 namespace iteralgo = thrust;
@@ -36,4 +39,8 @@ namespace iteralgo = std;
 
 
 #endif
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+
 

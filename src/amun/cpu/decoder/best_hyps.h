@@ -7,6 +7,7 @@
 #include "common/god.h"
 #include "common/exception.h"
 #include "cpu/mblas/matrix.h"
+#include "cpu/decoder/encoder_decoder.h"
 
 namespace amunmt {
 namespace CPU {
@@ -39,7 +40,7 @@ class BestHyps : public BestHypsBase
         const std::vector<ScorerPtr>& scorers,
         const Words& filterIndices,
         std::vector<Beam>& beams,
-        std::vector<size_t>& beamSizes)
+        std::vector<uint>& beamSizes)
     {
       using namespace mblas;
 
@@ -66,7 +67,7 @@ class BestHyps : public BestHypsBase
 
     std::cerr << "prevHyps.size() = " << prevHyps.size() << "\n";
     std::vector<SoftAlignmentPtr> alignments;
-    if (CPU::EncoderDecoder* encdec = dynamic_cast<CPU::EncoderDecoder*>(scorers[0].get())) {
+    if (CPU::CPUEncoderDecoderBase* encdec = dynamic_cast<CPU::CPUEncoderDecoderBase*>(scorers[0].get())) {
       auto& attention = encdec->GetAttention();
       std::cerr << "attention.rows() = " << attention.rows() << "\n";
       for(size_t i = 0; i < attention.rows(); i++) {
@@ -281,7 +282,7 @@ class BestHyps : public BestHypsBase
         if (returnAttentionWeights_) {
           std::vector<SoftAlignmentPtr> alignments;
           for (auto& scorer : scorers) {
-            if (CPU::EncoderDecoder* encdec = dynamic_cast<CPU::EncoderDecoder*>(scorer.get())) {
+            if (CPU::CPUEncoderDecoderBase* encdec = dynamic_cast<CPU::CPUEncoderDecoderBase*>(scorer.get())) {
               auto& attention = encdec->GetAttention();
               alignments.emplace_back(new SoftAlignment(attention.begin(hypIndex),
                                                         attention.end(hypIndex)));

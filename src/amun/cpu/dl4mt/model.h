@@ -4,12 +4,12 @@
 #include <map>
 #include <string>
 
-#include "../npz_converter.h"
-
-#include "../mblas/matrix.h"
+#include "cpu/npz_converter.h"
+#include "cpu/mblas/matrix.h"
 
 namespace amunmt {
 namespace CPU {
+namespace dl4mt {
 
 struct Weights {
 
@@ -91,7 +91,7 @@ struct Weights {
   //////////////////////////////////////////////////////////////////////////////
 
   Weights(const std::string& npzFile, size_t device = 0)
-  : Weights(NpzConverter(npzFile), device)
+    : Weights(NpzConverter(npzFile), device)
   {}
 
   Weights(const NpzConverter& model, size_t device = 0);
@@ -194,6 +194,7 @@ inline std::ostream& operator<<(std::ostream &out, const Weights &obj)
 	return out;
 }
 
+}
 }
 }
 

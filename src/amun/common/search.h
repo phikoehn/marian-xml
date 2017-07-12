@@ -22,14 +22,13 @@ class Search {
   protected:
     States NewStates() const;
     void FilterTargetVocab(const Sentences& sentences);
-    States SetSource(const Sentences& sentences);
-    std::shared_ptr<Histories> Decode(const God &god, const Sentences& sentences);
+    States Encode(const Sentences& sentences);
     void CleanAfterTranslation();
 
     bool CalcBeam(
                 const God &god,
     		std::shared_ptr<Histories>& histories,
-    		std::vector<size_t>& beamSizes,
+    		std::vector<uint>& beamSizes,
         Beam& prevHyps,
     		States& states,
     		States& nextStates);

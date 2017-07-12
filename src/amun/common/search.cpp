@@ -28,6 +28,13 @@ Search::~Search() {
 #endif
 }
 
+void Search::CleanAfterTranslation()
+{
+  for (auto scorer : scorers_) {
+    scorer->CleanUpAfterSentence();
+  }
+}
+
 std::shared_ptr<Histories> Search::Translate(const God &god, const Sentences& sentences) {
   boost::timer::cpu_timer timer;
 
@@ -35,53 +42,9 @@ std::shared_ptr<Histories> Search::Translate(const God &god, const Sentences& se
     FilterTargetVocab(sentences);
   }
 
-  auto histories = Decode(god,sentences);
-  CleanAfterTranslation();
-
-  LOG(progress, "Search took {}", timer.format(3, "%ws"));
-  return histories;
-}
-
-States Search::NewStates() const {
-  States states;
-  for (auto& scorer : scorers_) {
-    states.emplace_back(scorer->NewState());
-  }
-  return states;
-}
-
-void Search::FilterTargetVocab(const Sentences& sentences) {
-  size_t vocabSize = scorers_[0]->GetVocabSize();
-  std::set<Word> srcWords;
-  for (size_t i = 0; i < sentences.size(); ++i) {
-    const Sentence& sentence = *sentences.at(i);
-    for (const auto& srcWord : sentence.GetWords()) {
-      srcWords.insert(srcWord);
-    }
-  }
-
-  filterIndices_ = filter_->GetFilteredVocab(srcWords, vocabSize);
-  for (auto& scorer : scorers_) {
-    scorer->Filter(filterIndices_);
-  }
-}
-
-States Search::SetSource(const Sentences& sentences) {
-  States states;
-  for (auto& scorer : scorers_) {
-    scorer->SetSource(sentences);
-    auto state = scorer->NewState();
-    scorer->BeginSentenceState(*state, sentences.size());
-    states.emplace_back(state);
-  }
-  return states;
-}
-
-
-std::shared_ptr<Histories> Search::Decode(const God &god, const Sentences& sentences) {
-  States states = SetSource(sentences);
+  States states = Encode(sentences);
   States nextStates = NewStates();
-  std::vector<size_t> beamSizes(sentences.size(), 1);
+  std::vector<uint> beamSizes(sentences.size(), 1);
 
   std::shared_ptr<Histories> histories(new Histories(sentences, normalizeScore_));
   Beam prevHyps = histories->GetFirstHyps();
@@ -99,23 +62,38 @@ std::shared_ptr<Histories> Search::Decode(const God &god, const Sentences& sente
         beamSize = maxBeamSize_;
       }
     }
+    //cerr << "beamSizes=" << Debug(beamSizes, 1) << endl;
 
     bool hasSurvivors = CalcBeam(god, histories, beamSizes, prevHyps, states, nextStates);
     if (!hasSurvivors) {
       break;
     }
   }
+
+  CleanAfterTranslation();
+
+  LOG(progress)->info("Search took {}", timer.format(3, "%ws"));
   return histories;
 }
 
+States Search::Encode(const Sentences& sentences) {
+  States states;
+  for (auto& scorer : scorers_) {
+    scorer->Encode(sentences);
+    auto state = scorer->NewState();
+    scorer->BeginSentenceState(*state, sentences.size());
+    states.emplace_back(state);
+  }
+  return states;
+}
 
 bool Search::CalcBeam(
-                const God &god,
-		std::shared_ptr<Histories>& histories,
-		std::vector<size_t>& beamSizes,
+    const God &god,
+    std::shared_ptr<Histories>& histories,
+    std::vector<uint>& beamSizes,
     Beam& prevHyps,
-		States& states,
-		States& nextStates)
+    States& states,
+    States& nextStates)
 {
     size_t batchSize = beamSizes.size();
     Beams beams(batchSize);
@@ -146,15 +124,30 @@ bool Search::CalcBeam(
 }
 
 
+States Search::NewStates() const {
+  States states;
+  for (auto& scorer : scorers_) {
+    states.emplace_back(scorer->NewState());
+  }
+  return states;
+}
 
+void Search::FilterTargetVocab(const Sentences& sentences) {
+  size_t vocabSize = scorers_[0]->GetVocabSize();
+  std::set<Word> srcWords;
+  for (size_t i = 0; i < sentences.size(); ++i) {
+    const Sentence& sentence = *sentences.at(i);
+    for (const auto& srcWord : sentence.GetWords()) {
+      srcWords.insert(srcWord);
+    }
+  }
 
-
-void Search::CleanAfterTranslation()
-{
-  for (auto scorer : scorers_) {
-	  scorer->CleanUpAfterSentence();
+  filterIndices_ = filter_->GetFilteredVocab(srcWords, vocabSize);
+  for (auto& scorer : scorers_) {
+    scorer->Filter(filterIndices_);
   }
 }
+
 
 
 }

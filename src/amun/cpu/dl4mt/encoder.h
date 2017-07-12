@@ -6,6 +6,7 @@
 
 namespace amunmt {
 namespace CPU {
+namespace dl4mt {
 
 class Encoder {
   private:
@@ -49,7 +50,7 @@ class Encoder {
         }
         
         template <class It>
-        void GetContext(It it, It end, 
+        void Encode(It it, It end,
                         mblas::Matrix& Context, bool invert) {
           InitializeState();
           
@@ -86,7 +87,7 @@ class Encoder {
       backwardRnn_(model.encBackwardGRU_)
     {}
     
-    void GetContext(const std::vector<size_t>& words,
+    void Encode(const std::vector<size_t>& words,
                     mblas::Matrix& context);
     
   private:
@@ -95,6 +96,7 @@ class Encoder {
     RNN<Weights::GRU> backwardRnn_;
 };
 
+}
 }
 }
 
