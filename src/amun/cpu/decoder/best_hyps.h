@@ -65,19 +65,19 @@ class BestHyps : public BestHypsBase
       xmlCovered.push_back( prevHyps[i]->GetXmlOptionCovered() );
     }
 
-    std::cerr << "prevHyps.size() = " << prevHyps.size() << "\n";
+    //std::cerr << "prevHyps.size() = " << prevHyps.size() << "\n";
     std::vector<SoftAlignmentPtr> alignments;
     if (CPU::CPUEncoderDecoderBase* encdec = dynamic_cast<CPU::CPUEncoderDecoderBase*>(scorers[0].get())) {
       auto& attention = encdec->GetAttention();
-      std::cerr << "attention.rows() = " << attention.rows() << "\n";
+      //std::cerr << "attention.rows() = " << attention.rows() << "\n";
       for(size_t i = 0; i < attention.rows(); i++) {
         alignments.emplace_back(new SoftAlignment(attention.begin(i),
                                                   attention.end(i)));
       }
     }
-    else {
-      std::cerr << "FAILED";
-    }
+    //else {
+    //  std::cerr << "FAILED";
+    //}
 
     //std::cerr << "Probs.rows() = " << Probs.rows() << "\n";
     //std::cerr << "Probs.columns() = " << Probs.columns() << "\n";
@@ -86,7 +86,7 @@ class BestHyps : public BestHypsBase
     size_t penaltyWindow = god.Get<float>("xml-penalty-window");
     mblas::ArrayMatrix XmlCoveragePenalty(Probs.rows(), 1);
 
-    std::cerr << "alignments for current hypotheses:\n";
+    //std::cerr << "alignments for current hypotheses:\n";
     for (size_t i = 0; i < prevHyps.size(); ++i) {
       size_t max_pos = -1;
       float max_value = 0;
@@ -94,8 +94,8 @@ class BestHyps : public BestHypsBase
       float eos_attention = alignment[alignment.size()-1];
       for (size_t j = 0; j < alignment.size()-1; j++) {
         alignment[j] /= 1 - eos_attention;
-        if (alignment[j] < 0.1) { std::cerr << "-"; }
-        else { std::cerr << (int) (alignment[j]*10); }
+        //if (alignment[j] < 0.1) { std::cerr << "-"; }
+        //else { std::cerr << (int) (alignment[j]*10); }
         if (alignment[j] > max_value) {
           max_value = alignment[j];
           max_pos = j;
@@ -106,7 +106,7 @@ class BestHyps : public BestHypsBase
       //std::cerr << " " << god.GetTargetVocab()[prevHyps[i]->GetWord()];
       HypothesisPtr hyp = prevHyps[i];
       while(hyp->GetLength() > 0) {
-        std::cerr << " " << god.GetTargetVocab()[hyp->GetWord()];
+        //std::cerr << " " << god.GetTargetVocab()[hyp->GetWord()];
         hyp = hyp->GetPrevHyp();
       }
       //float prevCost = 0.0;
@@ -120,7 +120,7 @@ class BestHyps : public BestHypsBase
         // is there an xmlOption that was started but is not complete?
         for(size_t j=0; j<xmlCovered[i].size(); j++) {
           if (xmlCovered[i][j].GetStarted() && !xmlCovered[i][j].GetCovered()) {
-            std::cerr << " continue with XML option" ;
+            //std::cerr << " continue with XML option" ;
             const Words &outputWords = xmlCovered[i][j].GetOption()->GetOutput();
             Word outputWord = outputWords[xmlCovered[i][j].GetPosition()];
             auto ProbsPtx = Probs.begin();
@@ -142,7 +142,7 @@ class BestHyps : public BestHypsBase
             }
             xmlCovered[i][j].Proceed();
             if (xmlCovered[i][j].GetCovered()) {
-              std::cerr << ", now complete";
+              //std::cerr << ", now complete";
             }
             coveredByXml = true;
           }
@@ -153,7 +153,7 @@ class BestHyps : public BestHypsBase
           //std::cerr << max_pos << "=" << xmlOptions[j].GetStart() << "." << xmlCovered[i][j].GetCovered() << " ";
           if (max_pos == xmlCovered[i][j].GetOption()->GetStart() &&
               !xmlCovered[i][j].GetCovered()) {
-            std::cerr << " XML" ;
+            //std::cerr << " XML" ;
             const Words &outputWords = xmlCovered[i][j].GetOption()->GetOutput();
             Word outputWord = outputWords[0];
             auto ProbsPtx = Probs.begin();
@@ -174,12 +174,12 @@ class BestHyps : public BestHypsBase
               }
             }
             xmlCovered[i][j].Start();
-            if (xmlCovered[i][j].GetCovered()) {
-              std::cerr << ", complete" << outputWords.size();
-            }
-            else {
-              std::cerr << ", tbc" << outputWords.size();
-            }
+            //if (xmlCovered[i][j].GetCovered()) {
+            //  std::cerr << ", complete" << outputWords.size();
+            //}
+            //else {
+            //  std::cerr << ", tbc" << outputWords.size();
+            //}
             coveredByXml = true;
           }
         }
@@ -187,15 +187,15 @@ class BestHyps : public BestHypsBase
         size_t translationLength = prevHyps[i]->GetLength();
         float penalty = 0.0;
         float allP = 0.0;
-        std::cerr << ", penalty";
+        //std::cerr << ", penalty";
         for(size_t j=0; j<xmlCovered[i].size(); j++) {
           penalty -= prevHyps[i]->GetXmlOptionCovered()[j].GetPenalty(penaltyWeight, penaltyWindow, translationLength-1, false);
           penalty += xmlCovered[i][j].GetPenalty( penaltyWeight, penaltyWindow, translationLength, false );
           allP += xmlCovered[i][j].GetPenalty( penaltyWeight, penaltyWindow, translationLength, false );
-          std::cerr << "," << j << "(" << penaltyWeight << "," << penaltyWindow << "," << translationLength << ")=" << xmlCovered[i][j].GetPenalty( penaltyWeight, penaltyWindow, translationLength, false ) << "/" << prevHyps[i]->GetXmlOptionCovered()[j].GetPenalty(penaltyWeight, penaltyWindow, translationLength-1, false);
+          //std::cerr << "," << j << "(" << penaltyWeight << "," << penaltyWindow << "," << translationLength << ")=" << xmlCovered[i][j].GetPenalty( penaltyWeight, penaltyWindow, translationLength, false ) << "/" << prevHyps[i]->GetXmlOptionCovered()[j].GetPenalty(penaltyWeight, penaltyWindow, translationLength-1, false);
         }
         XmlCoveragePenalty.data()[i] = penalty;
-        std::cerr << " penalty:" << allP << " add" << penalty;
+        //std::cerr << " penalty:" << allP << " add" << penalty;
       }
 
       if (god.Has("lexicon-bias") && !coveredByXml) {
@@ -206,18 +206,18 @@ class BestHyps : public BestHypsBase
           *(ProbsPtx + word) += bias;
         }
       }
-      std::cerr << " cost:" << prevHyps[i]->GetCost();
+      //std::cerr << " cost:" << prevHyps[i]->GetCost();
       //std::cerr << " " << prevHyps[i]->GetCostBreakdown().size();
-      std::vector<float>& breakdown = prevHyps[i]->GetCostBreakdown();
-      if (breakdown.size() == 4) {
-        std::cerr << " breakdown:" << breakdown[0] << " " << breakdown[1] << " " << breakdown[2] << " " << breakdown[3];
-      }
-      std::cerr << "\n";
+      // std::vector<float>& breakdown = prevHyps[i]->GetCostBreakdown();
+      //if (breakdown.size() == 4) {
+        //std::cerr << " breakdown:" << breakdown[0] << " " << breakdown[1] << " " << breakdown[2] << " " << breakdown[3];
+      //}
+      // std::cerr << "\n";
     }
 
 
     if (god.Get<bool>("xml-input") && xmlCovered[0].size()>0) {
-      std::cerr << Debug(XmlCoveragePenalty);
+      //std::cerr << Debug(XmlCoveragePenalty);
       AddBiasVector<byColumn>(Probs, XmlCoveragePenalty);
       for (size_t i = 0; i < prevHyps.size(); ++i) {
         size_t translationLength = prevHyps[i]->GetLength();
