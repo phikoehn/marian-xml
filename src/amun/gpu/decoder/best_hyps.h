@@ -79,7 +79,7 @@ class BestHyps : public BestHypsBase
       BEGIN_TIMER("CalcBeam");
 
       using namespace mblas;
-      bool debug = true;
+      bool debug = false;
 
       if (debug) std::cerr << "CalcBeam\n";
       mblas::Matrix& Probs = static_cast<mblas::Matrix&>(scorers[0]->GetProbs());
