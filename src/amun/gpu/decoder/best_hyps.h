@@ -163,15 +163,17 @@ class BestHyps : public BestHypsBase
               if (debug) std::cerr << " continue with XML option" ;
               const Words &outputWords = xmlCovered[i][j].GetOption()->GetOutput();
               Word outputWord = outputWords[xmlCovered[i][j].GetPosition()];
-              for(size_t k = 0; k < Probs.dim(1); k++) {
-                if (k == outputWord) {
-                  Probs.set(prevCost, i, k, 0, 0);
-                }
-                else {
-                  float val = Probs.get(i, k, 0, 0);
-                  Probs.set(val-999, i, k, 0, 0);
-                }
-              }
+              Probs.set(999.0+prevCost, i, outputWord, 0, 0);
+              vXmlCoveragePenalty[i] += -999.0;
+              //for(size_t k = 0; k < Probs.dim(1); k++) {
+              //  if (k == outputWord) {
+              //    Probs.set(prevCost, i, k, 0, 0);
+              //  }
+              //  else {
+              //    float val = Probs.get(i, k, 0, 0);
+              //    Probs.set(val-999, i, k, 0, 0);
+              //  }
+              //}
               xmlCovered[i][j].Proceed();
               if (debug && xmlCovered[i][j].GetCovered()) {
                 std::cerr << ", now complete";
